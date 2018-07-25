@@ -2,6 +2,11 @@ require 'openssl'
 require 'json'
 require 'base64'
 require 'digest'
+require 'rmagick'
+
+R_COLOR_RANGE = [*0..255].freeze
+G_COLOR_RANGE = [*0..255].freeze
+B_COLOR_RANGE = [*0..255].freeze
 
 class KeyManagement
   def initialize
@@ -31,6 +36,21 @@ class KeyManagement
         200,
         { 'Content-Type' => 'application/json' },
         [{ signature: encoded_sign }.to_json]
+      ]
+    elsif req.get? && req.path == '/image'
+      r = R_COLOR_RANGE.sample
+      g = G_COLOR_RANGE.sample
+      b = B_COLOR_RANGE.sample
+      color = "##{"%02x"%r}#{"%02x"%g}#{"%02x"%b}"
+      image = Magick::Image.new(100, 100) do |i|
+        i.background_color = color
+        i.format = 'png'
+      end
+      hash = Digest::SHA256.hexdigest(image.to_blob)
+      [
+        200,
+        { 'Content-Type' => 'application/json' },
+        [{ image: Base64.encode64(image.to_blob), hash: hash }.to_json]
       ]
     else
       [
